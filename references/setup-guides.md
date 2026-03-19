@@ -118,12 +118,23 @@ Enter comma-separated IDs. Leave empty to allow all servers the bot is in.
       "im:message.p2p_msg:readonly",
       "im:message:readonly",
       "im:message:send_as_bot",
-      "im:resource"
+      "im:resource",
+      "drive:drive",
+      "drive:drive:readonly",
+      "sheets:spreadsheet",
+      "bitable:app",
+      "calendar:calendar",
+      "calendar:calendar:readonly"
     ],
     "user": [
       "aily:file:read",
       "aily:file:write",
-      "im:chat.access_event.bot_p2p_chat:read"
+      "im:chat.access_event.bot_p2p_chat:read",
+      "drive:drive",
+      "sheets:spreadsheet",
+      "bitable:app",
+      "calendar:calendar",
+      "calendar:calendar:readonly"
     ]
   }
 }
@@ -152,6 +163,27 @@ Enter comma-separated IDs. Leave empty to allow all servers the bot is in.
 3. Click **"Submit for Review"**
 4. For personal/test use, the admin can approve it directly in the **Feishu Admin Console** → **App Review**
 5. **Important:** The bot will NOT respond to messages until the version is approved and published
+
+### Step E — OAuth Authorization (for user-space docs/calendar)
+
+**Why is this needed?**
+By default, the bot uses a `tenant_access_token` (bot token). Documents and calendar events created with this token live in the **bot's space** — the user cannot see them in their Feishu app.
+
+To make Claude-created documents appear in the **user's own Drive**, you need a `user_access_token` via OAuth:
+
+1. Run the OAuth authorization script:
+   ```bash
+   FEISHU_APP_ID=your_app_id FEISHU_APP_SECRET=your_app_secret python3 scripts/feishu_oauth.py
+   ```
+2. A browser window will open asking you to authorize the app
+3. After authorization, the token is saved to `~/.claude-in-feishu/feishu_user_token.json`
+4. The token auto-refreshes; if it expires completely, re-run the script
+
+**For calendar visibility:**
+Even with a user token, bot-created events may land on the bot's default calendar. The recommended approach:
+1. Create a **shared calendar** in Feishu (e.g., "Claude Tasks")
+2. Find its `calendar_id` via `python3 scripts/feishu_docs.py cal_list`
+3. Configure the bot to create events on that shared calendar
 
 ### Domain (optional)
 

@@ -75,6 +75,9 @@ CTI_ENV_ISOLATION=inherit
 5. Configure Events → **Long Connection** mode
 6. Subscribe to `im.message.receive_v1`
 7. Publish and approve the app version
+8. (Optional) Run OAuth for user-space docs: `FEISHU_APP_ID=xxx FEISHU_APP_SECRET=xxx python3 scripts/feishu_oauth.py`
+
+> **Note:** Without OAuth, documents created by the bot live in the bot's space and are invisible to you. OAuth lets Claude create docs in your own Drive. See `references/setup-guides.md` for details.
 
 ### 4. Setup Journals
 

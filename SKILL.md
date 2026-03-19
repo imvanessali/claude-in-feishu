@@ -81,11 +81,19 @@ Default: feishu
 >     "tenant": [
 >       "im:message", "im:message:send_as_bot", "im:message.p2p_msg:readonly",
 >       "im:message.group_at_msg:readonly", "im:message:readonly", "im:resource",
->       "im:chat.access_event.bot_p2p_chat:read", "im:chat.members:bot_access"
+>       "im:chat.access_event.bot_p2p_chat:read", "im:chat.members:bot_access",
+>       "drive:drive", "drive:drive:readonly", "sheets:spreadsheet",
+>       "bitable:app", "calendar:calendar", "calendar:calendar:readonly"
+>     ],
+>     "user": [
+>       "drive:drive", "sheets:spreadsheet", "bitable:app",
+>       "calendar:calendar", "calendar:calendar:readonly"
 >     ]
 >   }
 > }
 > ```
+>
+> ⚠️ **注意**：`user` 权限是用于 OAuth 授权后以用户身份操作文档/日历，后续步骤会引导你完成授权。
 >
 > 完成后回复 "ok"
 
@@ -101,6 +109,38 @@ Default: feishu
 
 **Step 2e** (optional): Ask for Feishu domain:
 > Feishu 域名（直接回车使用默认 https://open.feishu.cn，国际版用 https://open.larksuite.com）：
+
+**Step 2f**: OAuth authorization for user-space documents and calendar:
+
+> ⚠️ **重要：Bot 空间 vs 用户空间**
+>
+> 飞书应用有两种 token：
+> - **tenant_access_token**（Bot token）：用它创建的文档和日历事件存在 Bot 的空间里，**用户看不到**
+> - **user_access_token**（用户 token）：用它创建的文档在**你自己的云盘**里，直接可见
+>
+> 如果你需要用 Claude 创建飞书文档并在手机上查看，需要完成 OAuth 授权。
+>
+> 是否现在进行 OAuth 授权？(y/n，默认 y)
+
+If yes, run:
+```bash
+cd <skill_directory>
+FEISHU_APP_ID=$APP_ID FEISHU_APP_SECRET=$APP_SECRET python3 scripts/feishu_oauth.py
+```
+This will open a browser window for OAuth authorization. The user_access_token will be saved to `~/.claude-in-feishu/feishu_user_token.json`.
+
+**Step 2g**: Shared calendar setup for event visibility:
+
+> **日历可见性**：即使用了 user_access_token，Bot 创建的日历事件默认在 Bot 的日历上。
+> 推荐做法是创建一个**共享日历**：
+>
+> 1. 在飞书日历中新建一个日历（如「Claude 任务」）
+> 2. 记下这个日历的 calendar_id（可通过 `python3 scripts/feishu_docs.py cal_list` 查看）
+> 3. Bot 创建事件时指定这个 calendar_id，事件就会出现在你的日历中
+>
+> 是否跳过日历配置？(y/n，默认跳过)
+
+If the user provides a calendar_id, save it to config.env as `CTI_FEISHU_CALENDAR_ID`.
 
 ### Step 3: Discord Setup (if discord selected)
 
