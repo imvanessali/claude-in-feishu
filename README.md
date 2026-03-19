@@ -40,7 +40,7 @@ cd claude-in-feishu
 
 打开飞书，给机器人发消息就行了。Claude 会在你的 Mac 上执行任务，把结果发回聊天。
 
-遇到问题？运行 `/claude-in-feishu doctor` 诊断。
+遇到问题？让电脑端的 Claude Code 帮你检查并修复。
 
 ## 架构
 
