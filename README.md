@@ -1,193 +1,58 @@
 # Claude in Feishu
 
-把 Claude Code 装进飞书。手机发任务，操作本地 Mac，管理飞书文档和日历，每次会话自动记录踩坑日志。
+把 Claude Code 装进飞书。手机发消息，Claude 在你的 Mac 上执行任务，结果直接发回飞书。
 
-## What it does
+## 能做什么
 
-```
-📱 Phone (Feishu)
-    ↓ send message
-🖥️ Local daemon (Node.js)
-    ↓ spawn session
-🤖 Claude Code CLI
-    ↓ execute tools
-💻 Your Mac + Feishu API
-    ↓ on exit
-📝 Auto-journal (Haiku summary)
-```
-
-### Capabilities
-
-| Feature | Description |
+| 能力 | 说明 |
 |---|---|
-| **Mobile → Claude Code** | Send tasks from phone, get results back in chat |
-| **Feishu Docs** | Create, read, search, append, move documents |
-| **Feishu Calendar** | Create events, list schedules |
-| **Send files to phone** | Upload images/files to Feishu chat for review |
-| **Screenshot review** | Claude takes screenshots of local apps/web pages and sends to Feishu for product review from phone |
-| **Cross-session visibility** | Sessions run in tmux, can read each other |
-| **Auto-journaling** | Every session auto-summarized with tags and reflections |
+| **手机远程操控** | 飞书发消息 → Claude Code 在 Mac 上执行 → 结果发回聊天 |
+| **飞书文档** | 创建、搜索、读取、追加文档，管理云盘文件夹 |
+| **飞书日历** | 创建日历事件、查看日程 |
+| **截图验收** | Claude 截取本地应用/网页截图，发到飞书，手机上做产品验收 |
+| **文件传输** | 本地图片、PDF 等文件直接发到飞书对话 |
+| **跨会话可见** | 所有 Claude 会话跑在 tmux 里，互相可以查看进度 |
+| **自动踩坑日志** | 每次会话结束自动总结：做了什么、踩了什么坑、关键决策 |
 
-## Quick Start
+## 快速开始
 
-### 1. Install
+### 前置条件
+
+- macOS + [Claude Code](https://claude.com/claude-code)
+- Node.js 20+、Python 3、tmux
+
+### 安装与配置
 
 ```bash
-# Clone
 git clone https://github.com/imvanessali/claude-in-feishu.git
 cd claude-in-feishu
-
-# Install dependencies
-npm install
-npm run build
 ```
 
-### 2. Configure
-
-Create `~/.claude-in-feishu/config.env`:
-
-```env
-# Feishu (create app at https://open.feishu.cn/app)
-CTI_ENABLED_CHANNELS=feishu
-CTI_FEISHU_APP_ID=your_app_id
-CTI_FEISHU_APP_SECRET=your_app_secret
-CTI_FEISHU_DOMAIN=https://open.feishu.cn
-
-# Claude settings
-CTI_DEFAULT_WORKDIR=/Users/yourname
-CTI_DEFAULT_MODEL=claude-sonnet-4-20250514
-CTI_DEFAULT_MODE=bypassPermissions
-CTI_ENV_ISOLATION=inherit
-```
-
-### 3. Setup Feishu App
-
-1. Go to [Feishu Open Platform](https://open.feishu.cn/app)
-2. Create a Custom App
-3. Enable **Bot** capability
-4. Add permissions: `im:message`, `im:resource`, `drive:drive`, `calendar:calendar`
-5. Configure Events → **Long Connection** mode
-6. Subscribe to `im.message.receive_v1`
-7. Publish and approve the app version
-8. (Optional) Run OAuth for user-space docs: `FEISHU_APP_ID=xxx FEISHU_APP_SECRET=xxx python3 scripts/feishu_oauth.py`
-
-> **Note:** Without OAuth, documents created by the bot live in the bot's space and are invisible to you. OAuth lets Claude create docs in your own Drive. See `references/setup-guides.md` for details.
-
-### 4. Setup Journals
-
-Add to `~/.claude/settings.json`:
-
-```json
-{
-  "hooks": {
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash /path/to/claude-in-feishu/journals/journal.sh"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-### 5. Setup tmux wrapper
-
-Add to `~/.zshrc`:
-
-```bash
-claude() {
-  if [ -n "$TMUX" ]; then
-    command claude "$@"
-    return
-  fi
-  local i=0
-  while tmux has-session -t "claude-$i" 2>/dev/null; do
-    i=$((i + 1))
-  done
-  local sess="claude-$i"
-  tmux new-session -s "$sess" -e "CLAUDE_TMUX_SESSION=$sess" "command claude $*; zsh"
-}
-```
-
-### 6. Start
-
-```bash
-bash scripts/daemon.sh start
-```
-
-## Usage
-
-### From phone
-Just message the bot in Feishu. It will:
-- Spawn a Claude Code session on your Mac
-- Execute whatever you ask
-- Send results (text, images, files) back to chat
-
-### Feishu toolkit
-```bash
-# Docs
-python3 scripts/feishu_docs.py create "Meeting Notes"
-python3 scripts/feishu_docs.py search "周报"
-python3 scripts/feishu_docs.py append <doc_id> "New content"
-
-# Calendar
-python3 scripts/feishu_docs.py event_create "Standup" "2026-03-20T10:00:00+08:00" "2026-03-20T10:30:00+08:00"
-
-# Send files to phone
-python3 scripts/feishu_docs.py send_image <chat_id> /path/to/screenshot.png
-python3 scripts/feishu_docs.py send_file <chat_id> /path/to/report.pdf
-```
-
-### Session journals
-
-Journals are auto-generated on session exit:
-- **Index**: `~/.claude/journals/INDEX.md` — scan tags to find relevant past sessions
-- **Full logs**: `~/.claude/journals/<date>_<slug>.md` — background, process, decisions, reflections
-
-## Architecture
-
-### Components
+然后运行 setup wizard，会一步步引导你完成所有配置（飞书应用创建、权限、OAuth 授权、日志系统、tmux 等）：
 
 ```
-claude-in-feishu/
-├── src/                    # Bridge daemon (TypeScript)
-│   ├── main.ts             # Entry point
-│   ├── llm-provider.ts     # Claude SDK integration + auto-retry
-│   ├── store.ts            # File-based persistence
-│   ├── permission-gateway.ts # Async tool permissions via IM
-│   ├── config.ts           # Config loader
-│   └── logger.ts           # Secret-redacting log rotation
-├── scripts/
-│   ├── daemon.sh           # Start/stop/status
-│   ├── doctor.sh           # Diagnostics
-│   ├── build.js            # ESBuild bundler
-│   └── feishu_docs.py      # Feishu API toolkit
-├── journals/
-│   ├── journal.sh          # Stop hook (extracts JSONL transcript)
-│   ├── journal-worker.sh   # Async Haiku summarizer
-│   └── extract-transcript.py # JSONL → readable text
-└── references/
-    └── setup-guides.md     # Platform setup instructions
+/claude-in-feishu setup
 ```
 
-### Key design decisions
+### 使用
 
-- **JSONL-first journaling**: Reads Claude Code's native `.jsonl` session files instead of relying on tmux capture (tmux is fallback)
-- **Async journal generation**: Stop hook returns immediately, spawns background worker so exit isn't blocked
-- **Auto-retry on stale sessions**: If `resume` fails with expired session ID, automatically starts fresh
-- **Secret redaction**: All logs auto-mask tokens, API keys, passwords
-- **Dedup**: Same session never journaled twice (marker files)
+打开飞书，给机器人发消息就行了。Claude 会在你的 Mac 上执行任务，把结果发回聊天。
 
-## Prerequisites
+遇到问题？运行 `/claude-in-feishu doctor` 诊断。
 
-- macOS with [Claude Code](https://claude.com/claude-code) installed
-- Node.js 20+
-- Python 3
-- tmux
+## 架构
+
+```
+📱 飞书（手机）
+    ↓ 发消息
+🖥️ 本地 daemon (Node.js)
+    ↓ 创建会话
+🤖 Claude Code CLI
+    ↓ 执行任务
+💻 Mac 本地 + 飞书 API
+    ↓ 会话结束
+📝 自动日志（Haiku 总结）
+```
 
 ## Credits
 
