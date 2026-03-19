@@ -2,6 +2,8 @@
 
 把 Claude Code 装进飞书。手机发消息，Claude 在你的 Mac 上执行任务，结果直接发回飞书。
 
+> **使用 Claude Code 订阅（Pro/Max Plan），不需要 API Key，不按 token 计费。**
+
 ## 能做什么
 
 | 能力 | 说明 |
